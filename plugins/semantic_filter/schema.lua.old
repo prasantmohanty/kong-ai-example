@@ -1,0 +1,15 @@
+return {
+  name = "semantic_filter",
+  fields = {
+    { config = {
+        type = "record",
+        fields = {
+          { redis_host = { type = "string", required = true } },
+          { redis_port = { type = "number", default = 6379 } },
+          { threshold = { type = "number", default = 0.8 } },
+          { ollama_url = { type = "string", required = true } }
+        }
+      }
+    }
+  }
+}

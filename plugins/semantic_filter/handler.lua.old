@@ -1,0 +1,80 @@
+local redis = require "resty.redis"
+
+local SemanticFilterHandler = {
+  VERSION = "1.0.0",
+  PRIORITY = 1100,
+}
+
+function SemanticFilterHandler:access(conf)
+  kong.log.notice("[semantic_filter] running")	
+  kong.log.inspect(conf)  -- Debug: check if config is passed correctly
+
+  local cjson = require "cjson.safe"
+  local body_raw = kong.request.get_raw_body()
+  local body_json = cjson.decode(body_raw)
+  local prompt = body_json and body_json.prompt or ""
+
+  kong.log.notice("[semantic_filter] prompt: ", prompt)
+
+  if not prompt then
+    return kong.response.exit(400, { message = "Missing request prompt." })
+  end
+
+  -- Connect to Redis
+  local red = redis:new()
+  red:set_timeout(1000)
+  
+  kong.log.notice("[semantic_filter] Redis Host: ", conf.redis_host)
+
+  local ok, err = red:connect(conf.redis_host or "127.0.0.1", conf.redis_port or 6379)
+  if not ok then
+    kong.log.err("[semantic_filter] Failed to connect to Redis: ", err)
+    return kong.response.exit(500, { message = "Internal error connecting to Redis." })
+  end
+
+  -- Scan Redis for matching deny keys
+  local cursor = "0"
+  local match_found = false
+
+  repeat
+    local res, scan_err = red:scan(cursor, "MATCH", "prompt:deny:*", "COUNT", 100)
+    kong.log.inspect(res)
+    if not res then
+      kong.log.err("Redis scan failed: ", scan_err)
+      break
+    end
+
+    cursor = res[1]
+    local keys = res[2]
+
+    kong.log.inspect(cursor)
+    kong.log.inspect(keys)
+
+    for _, key in ipairs(keys) do
+      local value, get_err = red:get(key)
+      kong.log.notice("[semantic_filter] Search key in redis ", key)
+      kong.log.notice("[semantic_filter] Got value from redis", value)
+      if value and value ~= ngx.null and prompt:lower():find(value:lower()) then
+        match_found = true
+        break
+      end
+    end
+  until cursor == "0" or match_found
+
+  kong.log.inspect(match_found)
+  
+  if match_found then
+    kong.log.notice("[semantic_filter] Prompt blocked by Redis deny list")
+    return kong.response.exit(403, { message = "[semantic_filter] Prompt blocked by Redis deny list." })
+  end
+
+  -- Fallback to prompt_guard check
+  local prompt_guard = conf.prompt_guard or ""
+  if prompt_guard ~= "" and not string.find(prompt:lower(), prompt_guard:lower()) then
+    return kong.response.exit(403, {
+      message = "Prompt rejected by semantic filter: missing required context.",
+    })
+  end
+end
+
+return SemanticFilterHandler

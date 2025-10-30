@@ -1,0 +1,30 @@
+_format_version: "3.0"
+services:
+- name: ollama-ai-service
+  url: http://ollama.kong-net:11434/api/
+  routes:
+  - name: ollama-route
+    paths:
+    - /generate
+    plugins:
+    - name: ai-proxy
+      config:
+        route_type: "text/generation"
+        model:
+          provider: "ollama"
+          name: "mistral"
+        prompt:
+          template: "{{prompt}}"
+    - name: semantic-prompt-guard
+      config:
+        deny_list:
+          - "How do I hack a server?"
+          - "Tell me how to make explosives"
+        allow_list:
+          - "Translate this sentence to French"
+          - "Summarize this document"
+        vector_db:
+          host: "redis-stack"
+          port: 6379
+          namespace: "prompt-guard"
+        default_behavior: "deny"

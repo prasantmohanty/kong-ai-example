@@ -1,0 +1,39 @@
+services:
+  kong-dbless:
+    #image: kong/kong-gateway:3.11.0.3 # Kong Gateway image (default to latest version)
+    #image: kong-with-semantic-filter
+    image: kong-ai-context
+    container_name: kong-dbless-readonly
+    restart: unless-stopped
+    volumes:
+      - ./declarative:/kong/declarative/
+      - ./tmp_volume:/var/run/kong/tmp
+      - ./prefix_volume:/var/run/kong
+    environment:
+      no_proxy: localhost,127.0.0.1
+      KONG_PREFIX: /var/run/kong
+      KONG_DATABASE: off
+      KONG_DECLARATIVE_CONFIG: /kong/declarative/kong.yml
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_LISTEN: 0.0.0.0:8002
+      KONG_ADMIN_GUI_URL: http://localhost:8002
+      KONG_PLUGINS: bundled,token_quota_validator,semantic_filter,ai-context
+    user: root
+    networks:
+      - kong-net
+    ports:
+      - "8000:8000"  
+      - "8443:8443"
+      #- "8001:8001"
+      - "8444:8444"
+      - "8002:8002"
+      - "8445:8445"
+      - "8003:8003"
+      - "8004:8004"
+
+networks:
+  kong-net:
+    external: true

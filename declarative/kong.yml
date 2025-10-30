@@ -1,0 +1,38 @@
+_format_version: '3.0'
+services:
+- name: ollama-service
+  url: http://ollama:11434/api/
+  routes:
+  - name: ollama-chat-route
+    paths:
+    - /chat-completion
+    - /chat
+    - /chat/(*)
+    - /generate  
+    plugins:
+      - name: token_quota_validator
+        config:
+          redis_host: "redis-redis-stack-1"  
+          redis_port: 6379
+          user_id_header: "test-user"
+          default_max_tokens: 1000
+      - name: semantic_filter
+        config:
+          prompt_guard: "thoughtful retirement"
+          redis_host: "redis-redis-stack-1"
+          redis_port: 6379
+          embedding_endpoint: "http://ollama.kong-net:11434/api/embeddings"
+          embedding_model: "finetuned_mistral:latest"
+          similarity_threshold: 0.85
+    strip_path: false
+- name: ai-context-service
+  url: http://ollama:11434/api/generate
+  routes:
+  - name: ai-context-route
+    paths:
+    - /llm
+    plugins:
+      - name: ai-context
+        config:
+          context_key: "ai_context" 
+          enabled: true

@@ -1,0 +1,17 @@
+_format_version: '3.0'
+services:
+- name: ollama-service
+  routes:
+  - name: ollama-chat-route
+    paths:
+    - /chat-completion
+    - /chat
+    - /chat/(*)
+    - /generate  
+    plugins:
+    - config:
+        minute: 20
+        policy: local
+      name: rate-limiting
+    strip_path: false
+  url: http://ollama.kong-net:11434/api/

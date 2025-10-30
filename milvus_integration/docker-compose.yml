@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  milvus-standalone:
+    image: milvusdb/milvus:v2.4.0
+    container_name: milvus-standalone
+    ports:
+      - "19530:19530"
+      - "19121:19121"
+    environment:
+      - TZ=Asia/Shanghai
+      - MILVUS_LOG_LEVEL=debug
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:19121/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - kong-net
+
+networks:
+  kong-net:
+    external: true
